@@ -34,6 +34,8 @@ struct Entry {
 
 enum SortType {
     SortType_Updated,
+    SortType_Title,
+    SortType_TitleID,
 };
 
 enum OrderType {

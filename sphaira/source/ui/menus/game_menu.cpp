@@ -331,6 +331,8 @@ Menu::Menu(u32 flags) : grid::Menu{"Games"_i18n, flags} {
 
                     SidebarEntryArray::Items sort_items;
                     sort_items.push_back("Updated"_i18n);
+                    sort_items.push_back("Title"_i18n);
+                    sort_items.push_back("Title ID"_i18n);
 
                     SidebarEntryArray::Items order_items;
                     order_items.push_back("Descending"_i18n);
@@ -614,20 +616,39 @@ void Menu::ScanHomebrew() {
 }
 
 void Menu::Sort() {
-    // const auto sort = m_sort.Get();
+    const auto sort = m_sort.Get();
     const auto order = m_order.Get();
 
-    if (order == OrderType_Ascending) {
-        if (!m_is_reversed) {
-            std::ranges::reverse(m_entries);
-            m_is_reversed = true;
-        }
-    } else {
-        if (m_is_reversed) {
-            std::ranges::reverse(m_entries);
-            m_is_reversed = false;
-        }
+    switch (sort) {
+        case SortType_Updated:
+            std::ranges::sort(m_entries, [](const auto& a, const auto& b){
+                return a.last_event > b.last_event;
+            });
+            break;
+
+        case SortType_Title:
+            // load titles if needed.
+            for (auto& e : m_entries) {
+                LoadControlEntry(e);
+            }
+
+            std::ranges::sort(m_entries, [](const auto& a, const auto& b){
+                return strcasecmp(a.GetName(), b.GetName()) < 0;
+            });
+            break;
+
+        case SortType_TitleID:
+            std::ranges::sort(m_entries, [](const auto& a, const auto& b){
+                return a.app_id < b.app_id;
+            });
+            break;
     }
+
+    if (order == OrderType_Ascending) {
+        std::ranges::reverse(m_entries);
+    }
+
+    m_is_reversed = (order == OrderType_Ascending);
 }
 
 void Menu::SortAndFindLastFile(bool scan) {
