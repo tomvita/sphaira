@@ -28,9 +28,11 @@
 #include "yati/container/base.hpp"
 #include "yati/container/nsp.hpp"
 
+#include <algorithm>
+#include <cctype>
+
 #include <utility>
 #include <cstring>
-#include <algorithm>
 #include <minIni.h>
 
 namespace sphaira::ui::menu::game {
@@ -324,7 +326,16 @@ Menu::Menu(u32 flags) : grid::Menu{"Games"_i18n, flags} {
             auto options = std::make_unique<Sidebar>("Game Options"_i18n, Sidebar::Side::RIGHT);
             ON_SCOPE_EXIT(App::Push(std::move(options)));
 
-            if (m_entries.size()) {
+            if (m_entries.size() || m_search_query.size()) {
+                options->Add<SidebarEntryCallback>("Find"_i18n, [this](){
+                    std::string out;
+                    if (R_SUCCEEDED(swkbd::ShowText(out, "Search"_i18n.c_str(), "Enter title name..."_i18n.c_str(), m_search_query.c_str()))) {
+                        m_search_query = out;
+                        Filter();
+                        SortAndFindLastFile(false);
+                    }
+                }, true);
+
                 options->Add<SidebarEntryCallback>("Sort By"_i18n, [this](){
                     auto options = std::make_unique<Sidebar>("Sort Options"_i18n, Sidebar::Side::RIGHT);
                     ON_SCOPE_EXIT(App::Push(std::move(options)));
@@ -633,12 +644,35 @@ void Menu::ScanHomebrew() {
         offset += record_count;
     }
 
+    m_all_entries = m_entries;
     m_is_reversed = false;
     m_dirty = false;
-    log_write("games found: %zu time_taken: %.2f seconds %zu ms %zu ns\n", m_entries.size(), ts.GetSecondsD(), ts.GetMs(), ts.GetNs());
+    log_write("games found: %zu time_taken: %.2f seconds %zu ms %zu ns\n", m_all_entries.size(), ts.GetSecondsD(), ts.GetMs(), ts.GetNs());
+    this->Filter();
     this->Sort();
     SetIndex(0);
     ClearSelection();
+}
+
+void Menu::Filter() {
+    if (m_search_query.empty()) {
+        m_entries = m_all_entries;
+        return;
+    }
+
+    m_entries.clear();
+    auto query = m_search_query;
+    std::transform(query.begin(), query.end(), query.begin(), ::tolower);
+
+    for (auto& e : m_all_entries) {
+        LoadControlEntry(e);
+        std::string name = e.GetName();
+        std::transform(name.begin(), name.end(), name.begin(), ::tolower);
+
+        if (name.find(query) != std::string::npos) {
+            m_entries.push_back(e);
+        }
+    }
 }
 
 void Menu::Sort() {
@@ -716,11 +750,12 @@ void Menu::SortAndFindLastFile(bool scan) {
 void Menu::FreeEntries() {
     auto vg = App::GetVg();
 
-    for (auto&p : m_entries) {
+    for (auto&p : m_all_entries) {
         FreeEntry(vg, p);
     }
 
     m_entries.clear();
+    m_all_entries.clear();
 }
 
 void Menu::OnLayoutChange() {

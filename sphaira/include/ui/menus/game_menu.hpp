@@ -61,6 +61,7 @@ struct Menu final : grid::Menu {
 private:
     void SetIndex(s64 index);
     void ScanHomebrew();
+    void Filter();
     void Sort();
     void SortAndFindLastFile(bool scan);
     void FreeEntries();
@@ -99,6 +100,8 @@ private:
     static constexpr inline const char* INI_SECTION_DUMP = "dump";
 
     std::vector<Entry> m_entries{};
+    std::vector<Entry> m_all_entries{};
+    std::string m_search_query{};
     s64 m_index{}; // where i am in the array
     s64 m_selected_count{};
     std::unique_ptr<List> m_list{};
