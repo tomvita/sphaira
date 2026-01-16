@@ -333,6 +333,7 @@ Menu::Menu(u32 flags) : grid::Menu{"Games"_i18n, flags} {
                     sort_items.push_back("Updated"_i18n);
                     sort_items.push_back("Title"_i18n);
                     sort_items.push_back("Title ID"_i18n);
+                    sort_items.push_back("Last Played"_i18n);
 
                     SidebarEntryArray::Items order_items;
                     order_items.push_back("Descending"_i18n);
@@ -604,6 +605,31 @@ void Menu::ScanHomebrew() {
             m_entries.emplace_back(e.application_id, e.last_event);
         }
 
+        // fetch last played timestamps for the current batch.
+        std::vector<u64> ids;
+        for (s32 i = 0; i < record_count; i++) {
+            ids.push_back(record_list[i].application_id);
+        }
+
+        std::vector<PdmLastPlayTime> play_times(ids.size());
+        s32 play_times_count{};
+        if (R_SUCCEEDED(pdmqryQueryLastPlayTime(true, play_times.data(), ids.data(), ids.size(), &play_times_count))) {
+            for (s32 i = 0; i < play_times_count; i++) {
+                const auto& pt = play_times[i];
+                if (pt.flag) {
+                    // find entry and update.
+                    // since we just pushed them, they are at the end of m_entries.
+                    const auto start_idx = m_entries.size() - record_count;
+                    for (size_t j = start_idx; j < m_entries.size(); j++) {
+                        if (m_entries[j].app_id == pt.application_id) {
+                            m_entries[j].last_played = pdmPlayTimestampToPosix(pt.timestamp_user);
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+
         offset += record_count;
     }
 
@@ -640,6 +666,12 @@ void Menu::Sort() {
         case SortType_TitleID:
             std::ranges::sort(m_entries, [](const auto& a, const auto& b){
                 return a.app_id < b.app_id;
+            });
+            break;
+
+        case SortType_LastPlayed:
+            std::ranges::sort(m_entries, [](const auto& a, const auto& b){
+                return a.last_played > b.last_played;
             });
             break;
     }

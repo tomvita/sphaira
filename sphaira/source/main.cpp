@@ -66,6 +66,8 @@ void userAppInit(void) {
         diagAbortWithResult(rc);
     if (R_FAILED(rc = ncmInitialize()))
         diagAbortWithResult(rc);
+    if (R_FAILED(rc = pdmqryInitialize()))
+        diagAbortWithResult(rc);
 
     // it doesn't matter if this fails.
     appletSetScreenShotPermission(AppletScreenShotPermission_Enable);
@@ -76,6 +78,7 @@ void userAppInit(void) {
 void userAppExit(void) {
     log_nxlink_exit();
 
+    pdmqryExit();
     ncmExit();
     hidsysExit();
     setExit();

@@ -21,6 +21,7 @@ struct Entry {
     NacpLanguageEntry lang{};
     int image{};
     bool selected{};
+    u64 last_played{};
     title::NacpLoadStatus status{title::NacpLoadStatus::None};
 
     auto GetName() const -> const char* {
@@ -36,6 +37,7 @@ enum SortType {
     SortType_Updated,
     SortType_Title,
     SortType_TitleID,
+    SortType_LastPlayed,
 };
 
 enum OrderType {
