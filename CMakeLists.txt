@@ -1,5 +1,8 @@
 cmake_minimum_required(VERSION 3.13)
 
+# Fix for "multiple target patterns" error on Windows when using Unix Makefiles with CMake 3.30+
+set(CMAKE_DEPENDS_USE_COMPILER FALSE)
+
 if (NOT DEFINED ENV{DEVKITPRO})
     message(FATAL_ERROR "DEVKITPRO is not defined!")
 endif()
