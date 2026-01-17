@@ -652,8 +652,8 @@ dkp_install_assets(sphaira_romfs
 # create nacp
 nx_generate_nacp(
     OUTPUT sphaira.nacp
-    NAME ${CMAKE_PROJECT_NAME}
-    AUTHOR TotalJustice
+    NAME "sphaira (Tomvita's Fork)"
+    AUTHOR Tomvita
     VERSION ${sphaira_VERSION}
 )
 
