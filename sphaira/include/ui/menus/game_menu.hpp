@@ -22,6 +22,8 @@ struct Entry {
     int image{};
     bool selected{};
     u64 last_played{};
+    u64 playtime{};
+    std::vector<u64> user_playtimes{};
     title::NacpLoadStatus status{title::NacpLoadStatus::None};
 
     auto GetName() const -> const char* {
@@ -38,6 +40,7 @@ enum SortType {
     SortType_Title,
     SortType_TitleID,
     SortType_LastPlayed,
+    SortType_TotalPlayTime,
 };
 
 enum OrderType {
@@ -66,6 +69,7 @@ private:
     void SortAndFindLastFile(bool scan);
     void FreeEntries();
     void OnLayoutChange();
+    void LoadPlaytime();
 
     auto GetSelectedEntries() const {
         std::vector<Entry> out;
@@ -102,11 +106,14 @@ private:
     std::vector<Entry> m_entries{};
     std::vector<Entry> m_all_entries{};
     std::string m_search_query{};
+    std::vector<AccountProfileBase> m_accounts{};
+    // nsz options
     s64 m_index{}; // where i am in the array
     s64 m_selected_count{};
     std::unique_ptr<List> m_list{};
     bool m_is_reversed{};
     bool m_dirty{};
+    bool m_playtime_loaded{false};
 
     // use for detection game card removal to force a refresh.
     Event m_gc_event{};
