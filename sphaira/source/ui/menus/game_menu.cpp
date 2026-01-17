@@ -313,9 +313,6 @@ Menu::Menu(u32 flags) : grid::Menu{"Games"_i18n, flags} {
                 }
             }
         }}),
-        std::make_pair(Button::B, Action{"Back"_i18n, [this](){
-            SetPop();
-        }}),
         std::make_pair(Button::A, Action{"Launch"_i18n, [this](){
             if (m_entries.empty()) {
                 return;
