@@ -6,6 +6,9 @@
                 "${default}",
                 "${workspaceFolder}/**",
                 "${workspaceFolder}/sphaira/include",
+                "c:/devkitPro/**",
+                "c:/devkitPro/libnx/include/**",
+                "c:/devkitPro/libnx/include/switch/services/**",
                 "${DEVKITPRO}/libnx/include/",
                 "${DEVKITPRO}/portlibs/switch/include/"
             ],

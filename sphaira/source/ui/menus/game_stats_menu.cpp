@@ -14,6 +14,10 @@ GameStatsMenu::GameStatsMenu(const Entry& entry) : grid::Menu{"", 0}, m_entry(en
         std::make_pair(Button::B, Action{"Back"_i18n, [this](){
             SetPop();
         }}),
+        std::make_pair(Button::Y, Action{"Toggle History"_i18n, [this](){
+            m_show_full_history = !m_show_full_history;
+            InitEntries();
+        }}),
         std::make_pair(Button::DOWN, Action{"Scroll"_i18n, [](){}})
     );
     
@@ -139,51 +143,132 @@ void GameStatsMenu::InitEntries() {
     m_entries.clear();
 
     
-    // Per-User Playtime
+    // Per-User Playtime or Full History
     if (!user_playtimes.empty()) {
-        const char* header = "Play Time per Profile:";
+        const char* header = m_show_full_history ? "Detailed Play History:" : "Play Time per Profile:";
         m_entries.emplace_back();
         strncpy(m_entries.back().lang.name, header, sizeof(m_entries.back().lang.name) - 1);
         
         for (size_t i = 0; i < user_playtimes.size(); i++) {
             if (user_playtimes[i] > 0) {
-                u64 minutes = user_playtimes[i] / 60000000000ULL;
-                u64 hours = minutes / 60;
-                minutes %= 60;
-                
                 std::string user_name = (i < accounts.size()) ? accounts[i].nickname : "Profile " + std::to_string(i + 1);
                 
-                std::string launches_str = "";
-                if (i < user_launches.size()) {
-                    launches_str = " (" + std::to_string(user_launches[i]) + " plays)";
-                }
+                if (m_show_full_history && i < accounts.size()) {
+                    // Raw history investigation: show all events with seconds, raw T0/T1, and unknown fields
+                    s32 total_entries = 0, start_idx = 0, end_idx = 0;
+                    if (R_SUCCEEDED(pdmqryGetAvailableAccountPlayEventRange(accounts[i].uid, &total_entries, &start_idx, &end_idx)) && total_entries > 0) {
+                        
+                        m_entries.emplace_back();
+                        std::string user_header = "  " + user_name + ":";
+                        strncpy(m_entries.back().lang.name, user_header.c_str(), sizeof(m_entries.back().lang.name) - 1);
 
-                std::string text = "  " + user_name + ": " + std::to_string(hours) + "h " + std::to_string(minutes) + "m" + launches_str;
-                
-                m_entries.emplace_back();
-                strncpy(m_entries.back().lang.name, text.c_str(), sizeof(m_entries.back().lang.name) - 1);
+                        struct RawEvent {
+                            u64 t0;
+                            u64 t1;
+                            u8 x0[4];
+                            u8 xc[12];
+                        };
+                        std::vector<RawEvent> raw_events;
+                        const int chunk_size = 300;
+                        
+                        // Scan entire available range for this user
+                        for (s32 current = start_idx; current < end_idx; current += chunk_size) {
+                            s32 to_read = std::min(chunk_size, end_idx - current);
+                            std::vector<PdmAccountPlayEvent> events(to_read);
+                            s32 actual_read = 0;
+                            
+                            if (R_SUCCEEDED(pdmqryQueryAccountPlayEvent(current, accounts[i].uid, events.data(), to_read, &actual_read))) {
+                                for (int j = 0; j < actual_read; j++) {
+                                    u64 id1 = ((u64)events[j].application_id[0] << 32) | (u64)events[j].application_id[1];
+                                    u64 id2 = ((u64)events[j].application_id[1] << 32) | (u64)events[j].application_id[0];
+                                    
+                                    if (id1 == m_entry.app_id || id2 == m_entry.app_id) {
+                                        RawEvent re;
+                                        re.t0 = events[j].timestamp0;
+                                        re.t1 = events[j].timestamp1;
+                                        std::memcpy(re.x0, events[j].unk_x0, 4);
+                                        std::memcpy(re.xc, events[j].unk_xc, 12);
+                                        raw_events.push_back(re);
+                                    }
+                                }
+                            }
+                        }
 
-                // Helper for time formatting
-                auto format_time = [](u64 timestamp) -> std::string {
-                    if (timestamp == 0) return "Unknown";
-                    time_t t = (time_t)timestamp;
-                    struct tm tm;
-                    localtime_r(&t, &tm);
-                    char buffer[64];
-                    strftime(buffer, sizeof(buffer), "%Y-%m-%d %H:%M", &tm);
-                    return std::string(buffer);
-                };
+                        // Show newest first
+                        int displayed = 0;
+                        for (auto it = raw_events.rbegin(); it != raw_events.rend(); ++it) {
+                            time_t t = (time_t)it->t0;
+                            struct tm tm;
+                            localtime_r(&t, &tm);
+                            char time_buf[64];
+                            strftime(time_buf, sizeof(time_buf), "%Y-%m-%d %H:%M:%S", &tm);
 
-                if (i < user_first.size() && user_first[i] > 0) {
+                            char x0_str[16];
+                            snprintf(x0_str, sizeof(x0_str), "%02X%02X%02X%02X", it->x0[0], it->x0[1], it->x0[2], it->x0[3]);
+                            
+                            char xc_str[36];
+                            char* p = xc_str;
+                            for(int k=0; k<12; k++) p += snprintf(p, 3, "%02X", it->xc[k]);
+
+                            char text[256];
+                            snprintf(text, sizeof(text), "    %s | %s | %s", time_buf, xc_str, x0_str);
+                            
+                            m_entries.emplace_back();
+                            strncpy(m_entries.back().lang.name, text, sizeof(m_entries.back().lang.name) - 1);
+                            
+                            displayed++;
+                            if (displayed >= 200) break;
+                        }
+
+                        if (displayed == 0) {
+                            m_entries.emplace_back();
+                            strncpy(m_entries.back().lang.name, "    No raw history logs found.", sizeof(m_entries.back().lang.name) - 1);
+                        }
+                    } else {
+                        m_entries.emplace_back();
+                        std::string user_header = "  " + user_name + ":";
+                        strncpy(m_entries.back().lang.name, user_header.c_str(), sizeof(m_entries.back().lang.name) - 1);
+                        m_entries.emplace_back();
+                        strncpy(m_entries.back().lang.name, "    No history events available.", sizeof(m_entries.back().lang.name) - 1);
+                    }
+                } else {
+                    // Existing summary logic
+                    u64 minutes = user_playtimes[i] / 60000000000ULL;
+                    u64 hours = minutes / 60;
+                    minutes %= 60;
+                    
+                    std::string launches_str = "";
+                    if (i < user_launches.size()) {
+                        launches_str = " (" + std::to_string(user_launches[i]) + " plays)";
+                    }
+
+                    std::string text = "  " + user_name + ": " + std::to_string(hours) + "h " + std::to_string(minutes) + "m" + launches_str;
+                    
                     m_entries.emplace_back();
-                    std::string t = "    First: " + format_time(user_first[i]);
-                    strncpy(m_entries.back().lang.name, t.c_str(), sizeof(m_entries.back().lang.name) - 1);
-                }
+                    strncpy(m_entries.back().lang.name, text.c_str(), sizeof(m_entries.back().lang.name) - 1);
 
-                if (i < user_last.size() && user_last[i] > 0) {
-                    m_entries.emplace_back();
-                    std::string t = "    Last:  " + format_time(user_last[i]);
-                    strncpy(m_entries.back().lang.name, t.c_str(), sizeof(m_entries.back().lang.name) - 1);
+                    // Helper for time formatting
+                    auto format_time = [](u64 timestamp) -> std::string {
+                        if (timestamp == 0) return "Unknown";
+                        time_t t = (time_t)timestamp;
+                        struct tm tm;
+                        localtime_r(&t, &tm);
+                        char buffer[64];
+                        strftime(buffer, sizeof(buffer), "%Y-%m-%d %H:%M", &tm);
+                        return std::string(buffer);
+                    };
+
+                    if (i < user_first.size() && user_first[i] > 0) {
+                        m_entries.emplace_back();
+                        std::string t = "    First: " + format_time(user_first[i]);
+                        strncpy(m_entries.back().lang.name, t.c_str(), sizeof(m_entries.back().lang.name) - 1);
+                    }
+
+                    if (i < user_last.size() && user_last[i] > 0) {
+                        m_entries.emplace_back();
+                        std::string t = "    Last:  " + format_time(user_last[i]);
+                        strncpy(m_entries.back().lang.name, t.c_str(), sizeof(m_entries.back().lang.name) - 1);
+                    }
                 }
             }
         }
