@@ -74,6 +74,7 @@ add_executable(sphaira
     source/ui/menus/irs_menu.cpp
     source/ui/menus/main_menu.cpp
     source/ui/menus/menu_base.cpp
+    source/ui/menus/game_stats_menu.cpp
     source/ui/menus/save_menu.cpp
     source/ui/menus/themezer.cpp
     source/ui/menus/ghdl.cpp

@@ -12,6 +12,7 @@
 
 #include "ui/menus/game_menu.hpp"
 #include "ui/menus/game_meta_menu.hpp"
+#include "ui/menus/game_stats_menu.hpp"
 #include "ui/menus/save_menu.hpp"
 #include "ui/menus/gc_menu.hpp" // remove when gc event pr is merged.
 #include "ui/sidebar.hpp"
@@ -318,6 +319,12 @@ Menu::Menu(u32 flags) : grid::Menu{"Games"_i18n, flags} {
                 return;
             }
             LaunchEntry(m_entries[m_index]);
+        }}),
+        std::make_pair(Button::B, Action{"Stats"_i18n, [this](){
+            if (m_entries.empty()) {
+                return;
+            }
+            App::Push<GameStatsMenu>(m_entries[m_index]);
         }}),
         std::make_pair(Button::X, Action{"Options"_i18n, [this](){
             auto options = std::make_unique<Sidebar>("Game Options"_i18n, Sidebar::Side::RIGHT);

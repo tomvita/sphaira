@@ -33,7 +33,7 @@ NACPTOOL := $(DEVKITPRO)/tools/bin/nacptool
 # Fork Branding
 APP_NAME    :=  "sphaira (Tomvita's Fork)"
 APP_AUTHOR  :=  "Tomvita"
-APP_VERSION :=  "1.0.0a"
+APP_VERSION :=  "1.0.0b"
 
 # Fetch Git info if available
 GIT_REV		:=	$(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")

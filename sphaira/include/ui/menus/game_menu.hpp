@@ -24,6 +24,10 @@ struct Entry {
     u64 last_played{};
     u64 playtime{};
     std::vector<u64> user_playtimes{};
+    u32 total_launches{};
+    std::vector<u32> user_launches{};
+    std::vector<u64> user_first_played{};
+    std::vector<u64> user_last_played{};
     title::NacpLoadStatus status{title::NacpLoadStatus::None};
 
     auto GetName() const -> const char* {
