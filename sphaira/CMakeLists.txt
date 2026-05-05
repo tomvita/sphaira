@@ -29,6 +29,7 @@ option(ENABLE_DEVOPTAB_WEBDAV "" ON)
 option(ENABLE_DEVOPTAB_SFTP "" OFF)
 
 set(sphaira_VERSION 1.0.0)
+set(sphaira_VERSION_STRING 1.0.0c)
 
 project(sphaira
     VERSION ${sphaira_VERSION}
@@ -61,7 +62,7 @@ execute_process(
 if (DEFINED sphaira_VERSION_OVERRIDE)
     set(sphaira_DISPLAY_VERSION "${sphaira_VERSION_OVERRIDE} [${GIT_COMMIT}]")
 else()
-    set(sphaira_DISPLAY_VERSION "${sphaira_VERSION} [${GIT_COMMIT}]")
+    set(sphaira_DISPLAY_VERSION "${sphaira_VERSION_STRING} [${GIT_COMMIT}]")
 endif()
 
 add_executable(sphaira
@@ -163,7 +164,7 @@ add_executable(sphaira
 )
 
 target_compile_definitions(sphaira PRIVATE
-    -DAPP_VERSION="${sphaira_VERSION}"
+    -DAPP_VERSION="${sphaira_VERSION_STRING}"
     -DAPP_DISPLAY_VERSION="${sphaira_DISPLAY_VERSION}"
     -DCURL_NO_OLDIES=1
     -DDEV_BUILD=$<BOOL:${DEV_BUILD}>
@@ -655,7 +656,7 @@ nx_generate_nacp(
     OUTPUT sphaira.nacp
     NAME "sphaira (Tomvita's Fork)"
     AUTHOR Tomvita
-    VERSION ${sphaira_VERSION}
+    VERSION ${sphaira_VERSION_STRING}
 )
 
 # create nro
