@@ -29,7 +29,7 @@ option(ENABLE_DEVOPTAB_WEBDAV "" ON)
 option(ENABLE_DEVOPTAB_SFTP "" OFF)
 
 set(sphaira_VERSION 1.0.0)
-set(sphaira_VERSION_STRING 1.0.0d)
+set(sphaira_VERSION_STRING 1.0.0e)
 
 project(sphaira
     VERSION ${sphaira_VERSION}

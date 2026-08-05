@@ -27,6 +27,8 @@ private:
     u64 m_last_played{0};
     u64 m_first_played{0};
     u32 m_global_launches{0};
+    std::string m_display_version{};
+    std::string m_build_id{};
     bool m_show_full_history{false};
 };
 

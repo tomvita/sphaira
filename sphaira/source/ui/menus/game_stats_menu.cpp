@@ -2,6 +2,8 @@
 #include "app.hpp"
 #include "i18n.hpp"
 #include "ui/nvg_util.hpp"
+#include "utils/devoptab.hpp"
+#include "yati/nx/ncm.hpp"
 #include <cstring>
 #include <ctime>
 #include <cstdio>
@@ -10,6 +12,105 @@
 #include <vector>
 
 namespace sphaira::ui::menu::game {
+namespace {
+
+struct NsoBuildIdHeader {
+    u8 reserved[0x40];
+    u8 build_id[0x20];
+};
+
+static_assert(offsetof(NsoBuildIdHeader, build_id) == 0x40);
+
+void FormatBuildId(const NsoBuildIdHeader& header, std::string& out) {
+    char build_id[17]{};
+    for (size_t i = 0; i < 8; ++i) {
+        std::snprintf(build_id + i * 2, sizeof(build_id) - i * 2, "%02X", header.build_id[i]);
+    }
+    out = build_id;
+}
+
+Result ReadBuildIdFromCodeFs(fs::Fs& code_fs, std::string& out) {
+    fs::File main;
+    R_TRY(code_fs.OpenFile("/main", FsOpenMode_Read, &main));
+    NsoBuildIdHeader header{};
+    u64 bytes_read{};
+    R_TRY(main.Read(0, &header, sizeof(header), 0, &bytes_read));
+    R_UNLESS(bytes_read == sizeof(header), Result_GameMultipleKeysFound);
+    FormatBuildId(header, out);
+    R_SUCCEED();
+}
+
+Result ReadBuildIdFromNca(NcmContentStorage* cs, const NcmContentId& content_id, std::string& out) {
+    fs::FsPath root;
+    R_TRY(devoptab::MountNcaNcm(cs, &content_id, root));
+    ON_SCOPE_EXIT(devoptab::UmountNeworkDevice(root));
+
+    char main_path[FS_MAX_PATH]{};
+    std::snprintf(main_path, sizeof(main_path), "%s/exeFS/main", root.s);
+    FILE* main = std::fopen(main_path, "rb");
+    R_UNLESS(main, Result_GameMultipleKeysFound);
+    ON_SCOPE_EXIT(std::fclose(main));
+
+    NsoBuildIdHeader header{};
+    R_UNLESS(std::fread(&header, 1, sizeof(header), main) == sizeof(header), Result_GameMultipleKeysFound);
+    FormatBuildId(header, out);
+    R_SUCCEED();
+}
+
+Result LoadGameBuildId(const Entry& entry, std::string& out) {
+    title::MetaEntries statuses;
+    R_TRY(GetMetaEntries(entry, statuses, title::ContentFlag_Nacp));
+
+    // Prefer the newest patch, falling back to the newest base application.
+    const NsApplicationContentMetaStatus* selected{};
+    for (const auto& status : statuses) {
+        if (status.meta_type != NcmContentMetaType_Application && status.meta_type != NcmContentMetaType_Patch) {
+            continue;
+        }
+        if (!selected || status.meta_type > selected->meta_type ||
+            (status.meta_type == selected->meta_type && status.version > selected->version)) {
+            selected = &status;
+        }
+    }
+    R_UNLESS(selected, Result_GameMultipleKeysFound);
+
+    NcmMetaData meta;
+    R_TRY(GetNcmMetaFromMetaStatus(*selected, meta));
+    std::vector<NcmContentInfo> infos;
+    R_TRY(ncm::GetContentInfos(meta.db, &meta.key, infos));
+
+    for (const auto& info : infos) {
+        if (info.content_type != NcmContentType_Program) {
+            continue;
+        }
+
+        u64 program_id;
+        fs::FsPath path;
+        R_TRY(ncm::GetFsPathFromContentId(meta.cs, meta.key, info.content_id, &program_id, &path));
+        // fsp-ldr isn't available in every homebrew launch context. Try it first,
+        // then use Sphaira's own NCA reader, which is already used by View Content.
+        if (R_SUCCEEDED(fsldrInitialize())) {
+            FsCodeInfo code_info{};
+            FsFileSystem raw_fs{};
+            const auto rc = fsldrOpenCodeFileSystem(&code_info, program_id,
+                static_cast<NcmStorageId>(selected->storageID), path, FsContentAttributes_All, &raw_fs);
+            if (R_SUCCEEDED(rc)) {
+                fs::FsNative code_fs{&raw_fs, true};
+                if (R_SUCCEEDED(ReadBuildIdFromCodeFs(code_fs, out))) {
+                    fsldrExit();
+                    R_SUCCEED();
+                }
+            }
+            fsldrExit();
+        }
+
+        return ReadBuildIdFromNca(meta.cs, info.content_id, out);
+    }
+
+    R_THROW(Result_GameMultipleKeysFound);
+}
+
+} // namespace
 
 GameStatsMenu::GameStatsMenu(const Entry& entry) : grid::Menu{"", 0}, m_entry(entry) {
     this->SetActions(
@@ -23,6 +124,15 @@ GameStatsMenu::GameStatsMenu(const Entry& entry) : grid::Menu{"", 0}, m_entry(en
         std::make_pair(Button::DOWN, Action{"Scroll"_i18n, [](){}})
     );
     
+    std::vector<u8> control_data(sizeof(NsApplicationControlData));
+    u64 control_size{};
+    if (R_SUCCEEDED(nsGetApplicationControlData(NsApplicationControlSource_Storage, m_entry.app_id,
+            reinterpret_cast<NsApplicationControlData*>(control_data.data()), control_data.size(), &control_size))) {
+        const auto* nacp = reinterpret_cast<const NacpStruct*>(control_data.data());
+        m_display_version = nacp->display_version;
+    }
+    LoadGameBuildId(m_entry, m_build_id);
+
     InitEntries();
 }
 
@@ -553,6 +663,19 @@ void GameStatsMenu::Draw(NVGcontext* vg, Theme* theme) {
             snprintf(id_str, sizeof(id_str), "ID: %016llX", (unsigned long long)m_entry.app_id);
             gfx::drawText(vg, infoX, y, 16.0f, id_str, nullptr, NVG_ALIGN_LEFT | NVG_ALIGN_TOP, labelColor);
             y += 38;
+        }
+
+        // Display version and the conventional 16-character NSO build ID.
+        if (!m_display_version.empty() || !m_build_id.empty()) {
+            std::string metadata;
+            if (!m_display_version.empty()) {
+                metadata = "Version: " + m_display_version;
+            }
+            if (!m_build_id.empty()) {
+                if (!metadata.empty()) metadata += "   ";
+                metadata += "Build ID: " + m_build_id;
+            }
+            gfx::drawText(vg, infoX, y - 16, 14.0f, metadata.c_str(), nullptr, NVG_ALIGN_LEFT | NVG_ALIGN_TOP, labelColor);
         }
 
         // Total Playtime
