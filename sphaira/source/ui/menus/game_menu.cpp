@@ -711,7 +711,7 @@ void Menu::ScanHomebrew() {
                 continue;
             }
 
-            auto& entry = m_entries.emplace_back(e.application_id, e.last_event);
+            auto& entry = m_entries.emplace_back(e.application_id, e.last_updated);
 
             // Load cached playtime data immediately for sorting
             char section[33];
@@ -797,7 +797,7 @@ void Menu::Sort() {
     switch (sort) {
         case SortType_Updated:
             std::ranges::sort(m_entries, [](const auto& a, const auto& b){
-                return a.last_event > b.last_event;
+                return a.last_updated > b.last_updated;
             });
             break;
 

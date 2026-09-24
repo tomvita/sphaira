@@ -247,7 +247,7 @@ bool Device::Mount() {
 
             for (s32 i = 0; i < record_count; i++) {
                 const auto& e = record_list[i];
-                m_entries.emplace_back(game::Entry{e.application_id, e.last_event});
+                m_entries.emplace_back(game::Entry{e.application_id, e.last_updated});
             }
 
             offset += record_count;

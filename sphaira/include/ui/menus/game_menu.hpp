@@ -17,7 +17,7 @@ namespace sphaira::ui::menu::game {
 
 struct Entry {
     u64 app_id{};
-    u8 last_event{};
+    u64 last_updated{}; // ns ApplicationRecord LastUpdated: bumped by install, update and launch
     NacpLanguageEntry lang{};
     int image{};
     bool selected{};
