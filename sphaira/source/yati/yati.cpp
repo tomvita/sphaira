@@ -1363,10 +1363,17 @@ Result Yati::RegisterNcasAndPushRecord(const CnmtCollection& cnmt, u32 latest_ve
 
     R_TRY(ns::PushApplicationRecord(app_id, std::addressof(content_storage_record), 1));
     if (hosversionAtLeast(6,0,0)) {
-        R_TRY(avmInitialize());
-        ON_SCOPE_EXIT(avmExit());
-
-        R_TRY(avmPushLaunchVersion(app_id, latest_version_num));
+        // Everything above is committed, so this must not fail the install. avm allows very
+        // few sessions: with a HOME replacement that keeps one open (SwitchU's daemon does)
+        // avmInitialize() returns sm's OutOfSessions (0x615).
+        if (const auto rc = avmInitialize(); R_SUCCEEDED(rc)) {
+            ON_SCOPE_EXIT(avmExit());
+            if (const auto push_rc = avmPushLaunchVersion(app_id, latest_version_num); R_FAILED(push_rc)) {
+                log_write("avmPushLaunchVersion() failed: 0x%X, launch version not set\n", push_rc);
+            }
+        } else {
+            log_write("avmInitialize() failed: 0x%X, launch version not set\n", rc);
+        }
     }
     log_write("pushed\n");
 

@@ -394,13 +394,13 @@ endif()
 
 if (ENABLE_LIBHAZE)
     FetchContent_Declare(libhaze
-        GIT_REPOSITORY https://github.com/ITotalJustice/libhaze.git
-        GIT_TAG 81154c1
+        GIT_REPOSITORY https://github.com/R-YaTian/libhaze.git
+        GIT_TAG f1c9c63
     )
 
     FetchContent_MakeAvailable(libhaze)
     target_compile_definitions(sphaira PRIVATE ENABLE_LIBHAZE)
-    target_link_libraries(sphaira PRIVATE libhaze)
+    target_link_libraries(sphaira PRIVATE haze)
 
     target_sources(sphaira PRIVATE
         source/haze_helper.cpp

@@ -172,6 +172,7 @@ enum {
     Module_Fst2 = 251,
     Module_Nex = 306,
     Module_Npln = 321,
+    Module_Haze = 420,
     Module_Tspm = 499,
     Module_Devmenu = 500,
     Module_Sphaira = 505,
@@ -534,6 +535,7 @@ enum class SphairaResult : Result {
 
     NroBadMagic,
     NroBadSize,
+    CoreUnavailable,
 
     AppFailedMusicDownload,
     CurlFailedEasyInit,
@@ -584,11 +586,14 @@ enum class SphairaResult : Result {
     GhdlEmptyAsset,
     GhdlFailedToDownloadAsset,
     GhdlFailedToDownloadAssetJson,
+    GhdlUnsafeArchivePath,
 
     ThemezerFailedToDownloadThemeMeta,
     ThemezerFailedToDownloadTheme,
 
     MainFailedToDownloadUpdate,
+    MainDownloadedUpdateInvalid,
+    MainFailedToInstallUpdate,
 
     UsbDsBadDeviceSpeed,
 
@@ -675,6 +680,19 @@ enum class SphairaResult : Result {
     NszTooManyBlocks,
     // set when nca finished but not all blocks were handled.
     NszMissingBlocks,
+
+    NxVersionsFailedToDownload,
+    NxVersionsInvalidDatabase,
+
+    NspInvalidHeader,
+    MspMissingManifest,
+    MspInvalidManifest,
+    MspInvalidTitleId,
+    MspInvalidVersion,
+    MspInvalidPatchset,
+    MspInvalidEntry,
+    MspDuplicateEntry,
+    MspNoPayload,
 };
 
 #define MAKE_SPHAIRA_RESULT_ENUM(x) Result_##x =  MAKERESULT(Module_Sphaira, (Result)SphairaResult::x)
@@ -714,6 +732,7 @@ enum : Result {
     MAKE_SPHAIRA_RESULT_ENUM(FsFailedStdioOpendir),
     MAKE_SPHAIRA_RESULT_ENUM(NroBadMagic),
     MAKE_SPHAIRA_RESULT_ENUM(NroBadSize),
+    MAKE_SPHAIRA_RESULT_ENUM(CoreUnavailable),
     MAKE_SPHAIRA_RESULT_ENUM(AppFailedMusicDownload),
     MAKE_SPHAIRA_RESULT_ENUM(CurlFailedEasyInit),
     MAKE_SPHAIRA_RESULT_ENUM(DumpFailedNetworkUpload),
@@ -753,9 +772,12 @@ enum : Result {
     MAKE_SPHAIRA_RESULT_ENUM(GhdlEmptyAsset),
     MAKE_SPHAIRA_RESULT_ENUM(GhdlFailedToDownloadAsset),
     MAKE_SPHAIRA_RESULT_ENUM(GhdlFailedToDownloadAssetJson),
+    MAKE_SPHAIRA_RESULT_ENUM(GhdlUnsafeArchivePath),
     MAKE_SPHAIRA_RESULT_ENUM(ThemezerFailedToDownloadThemeMeta),
     MAKE_SPHAIRA_RESULT_ENUM(ThemezerFailedToDownloadTheme),
     MAKE_SPHAIRA_RESULT_ENUM(MainFailedToDownloadUpdate),
+    MAKE_SPHAIRA_RESULT_ENUM(MainDownloadedUpdateInvalid),
+    MAKE_SPHAIRA_RESULT_ENUM(MainFailedToInstallUpdate),
     MAKE_SPHAIRA_RESULT_ENUM(UsbDsBadDeviceSpeed),
 
     MAKE_SPHAIRA_RESULT_ENUM(NspBadMagic),
@@ -821,6 +843,19 @@ enum : Result {
     MAKE_SPHAIRA_RESULT_ENUM(NszFailedCompressStream2),
     MAKE_SPHAIRA_RESULT_ENUM(NszTooManyBlocks),
     MAKE_SPHAIRA_RESULT_ENUM(NszMissingBlocks),
+
+    MAKE_SPHAIRA_RESULT_ENUM(NxVersionsFailedToDownload),
+    MAKE_SPHAIRA_RESULT_ENUM(NxVersionsInvalidDatabase),
+
+    MAKE_SPHAIRA_RESULT_ENUM(NspInvalidHeader),
+    MAKE_SPHAIRA_RESULT_ENUM(MspMissingManifest),
+    MAKE_SPHAIRA_RESULT_ENUM(MspInvalidManifest),
+    MAKE_SPHAIRA_RESULT_ENUM(MspInvalidTitleId),
+    MAKE_SPHAIRA_RESULT_ENUM(MspInvalidVersion),
+    MAKE_SPHAIRA_RESULT_ENUM(MspInvalidPatchset),
+    MAKE_SPHAIRA_RESULT_ENUM(MspInvalidEntry),
+    MAKE_SPHAIRA_RESULT_ENUM(MspDuplicateEntry),
+    MAKE_SPHAIRA_RESULT_ENUM(MspNoPayload),
 };
 
 #undef MAKE_SPHAIRA_RESULT_ENUM
